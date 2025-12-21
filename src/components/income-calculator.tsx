@@ -45,31 +45,31 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
     }
   }, [incomes, allocations])
 
-  const handleIncomeChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIncomeChange = React.useCallback((id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
     const numericValue = input.replace(/[^0-9.]/g, '')
     updateIncome(id, { value: numericValue, displayValue: numericValue })
-  }
+  }, [updateIncome])
 
-  const handleDescriptionChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDescriptionChange = React.useCallback((id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     updateIncome(id, { description: value })
-  }
+  }, [updateIncome])
 
-  const handleIncomeBlur = (id: number) => {
+  const handleIncomeBlur = React.useCallback((id: number) => {
     const income = incomes.find(i => i.id === id)
     if (income?.value) {
       const formatted = formatNumber(income.value, currency)
       updateIncome(id, { displayValue: formatted })
     }
-  }
+  }, [incomes, currency, updateIncome])
 
-  const handleIncomeFocus = (id: number) => {
+  const handleIncomeFocus = React.useCallback((id: number) => {
     const income = incomes.find(i => i.id === id)
     if (income) {
       updateIncome(id, { displayValue: income.value })
     }
-  }
+  }, [incomes, updateIncome])
 
   const handleAddIncome = () => {
     addIncome({ id: nextIdRef.current, value: '', displayValue: '', description: '' })
@@ -79,15 +79,6 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
   const handleRemoveIncome = (id: number) => {
     if (incomes.length > 1) {
       removeIncome(id)
-    }
-  }
-
-  const handleCalculate = () => {
-    // Manual calculation trigger (now just scrolls to results if they exist)
-    if (results.length > 0) {
-      // Optionally scroll to results section
-      const resultsElement = document.getElementById('allocation-results')
-      resultsElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }
 
@@ -113,6 +104,13 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
               {incomes.map((income, index) => (
                 <div key={income.id} className="flex gap-2">
                   <Input
+                    type="text"
+                    placeholder="Description (optional)"
+                    value={income.description}
+                    onChange={(e) => handleDescriptionChange(income.id, e)}
+                    className="text-sm h-9 sm:h-10 flex-1"
+                  />
+                  <Input
                     id={index === 0 ? 'income' : undefined}
                     type="text"
                     placeholder="0"
@@ -120,13 +118,6 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                     onChange={(e) => handleIncomeChange(income.id, e)}
                     onBlur={() => handleIncomeBlur(income.id)}
                     onFocus={() => handleIncomeFocus(income.id)}
-                    className="text-sm h-9 sm:h-10 flex-1"
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={income.description}
-                    onChange={(e) => handleDescriptionChange(income.id, e)}
                     className="text-sm h-9 sm:h-10 flex-1"
                   />
                   {incomes.length > 1 && (
@@ -143,7 +134,11 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 items-center">
+              <div className="flex-1 flex items-center justify-between rounded-md text-primary bg-muted/30 px-2 sm:px-2 h-8 sm:h-10">
+                <span className="text-xs sm:text-sm font-medium">Total Income</span>
+                <span className="text-sm sm:text-base font-bold">{formatCurrency(incomeValue, currency)}</span>
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -152,9 +147,6 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                 className="h-9 sm:h-10 w-9 sm:w-10 shrink-0"
               >
                 <Plus size={16} />
-              </Button>
-              <Button onClick={handleCalculate} className="text-sm sm:text-base h-9 sm:h-10 flex-1">
-                Calculate
               </Button>
             </div>
           </div>
