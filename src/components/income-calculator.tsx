@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import type { Allocation } from '@/lib/database'
 import { calculateAllocation, getAllocationIcon } from '@/lib/finance'
 import { useSettings, formatNumber, formatCurrency } from '@/lib/settings'
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, Plus, X } from 'lucide-react'
 
 
 interface IncomeCalculatorProps {
@@ -19,37 +19,60 @@ interface CalculationResult extends Allocation {
 }
 
 export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
-  const { currency } = useSettings()
-  const [income, setIncome] = React.useState('')
-  const [displayIncome, setDisplayIncome] = React.useState('')
+  const { currency, incomes, updateIncome, addIncome, removeIncome } = useSettings()
   const [results, setResults] = React.useState<CalculationResult[]>([])
   const [error, setError] = React.useState('')
+  const nextIdRef = React.useRef(2)
 
-  const handleIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIncomeChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
     const numericValue = input.replace(/[^0-9.]/g, '')
-    setIncome(numericValue)
-    setDisplayIncome(numericValue)
+    updateIncome(id, { value: numericValue, displayValue: numericValue })
   }
 
-  const handleIncomeBlur = () => {
-    if (income) {
-      const formatted = formatNumber(income, currency)
-      setDisplayIncome(formatted)
+  const handleDescriptionChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    updateIncome(id, { description: value })
+  }
+
+  const handleIncomeBlur = (id: number) => {
+    const income = incomes.find(i => i.id === id)
+    if (income?.value) {
+      const formatted = formatNumber(income.value, currency)
+      updateIncome(id, { displayValue: formatted })
     }
   }
 
-  const handleIncomeFocus = () => {
-    setDisplayIncome(income)
+  const handleIncomeFocus = (id: number) => {
+    const income = incomes.find(i => i.id === id)
+    if (income) {
+      updateIncome(id, { displayValue: income.value })
+    }
+  }
+
+  const handleAddIncome = () => {
+    addIncome({ id: nextIdRef.current, value: '', displayValue: '', description: '' })
+    nextIdRef.current += 1
+  }
+
+  const handleRemoveIncome = (id: number) => {
+    if (incomes.length > 1) {
+      removeIncome(id)
+    }
   }
 
   const handleCalculate = () => {
     setError('')
     setResults([])
 
-    const incomeValue = parseFloat(income)
-    if (!income || incomeValue <= 0) {
-      setError('Please enter a valid income amount')
+    // Calculate total income from all inputs
+    const totalIncome = incomes.reduce((sum, income) => {
+      const value = parseFloat(income.value) || 0
+      return sum + value
+    }, 0)
+
+    if (totalIncome <= 0) {
+      setError('Please enter at least one valid income amount')
       return
     }
 
@@ -59,7 +82,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
     }
 
     try {
-      const calculatedResults = calculateAllocation(incomeValue, allocations)
+      const calculatedResults = calculateAllocation(totalIncome, allocations)
       setResults(calculatedResults as CalculationResult[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Calculation failed')
@@ -67,7 +90,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
   }
 
   const totalAllocated = results.reduce((sum, r) => sum + r.amount, 0)
-  const incomeValue = parseFloat(income) || 0
+  const incomeValue = incomes.reduce((sum, income) => sum + (parseFloat(income.value) || 0), 0)
   const remaining = incomeValue - totalAllocated
 
   return (
@@ -79,23 +102,56 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
             <TrendingUp size={16} className="sm:hidden text-primary" />
             Income Calculator
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Enter your income to calculate allocations</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Enter your income(s) to calculate allocations</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 sm:space-y-4">
           <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="income" className="text-xs sm:text-sm">Received Income</Label>
-            <div className="gap-x-3 flex flex-col sm:flex-row">
-              <Input
-                id="income"
-                type="text"
-                placeholder="0"
-                value={displayIncome}
-                onChange={handleIncomeChange}
-                onBlur={handleIncomeBlur}
-                onFocus={handleIncomeFocus}
-                className="text-sm h-9 sm:h-10 flex-1"
-              />
-              <Button onClick={handleCalculate} className="text-sm sm:text-base h-9 sm:h-10 sm:w-fit w-full">
+            <Label htmlFor="income" className="text-xs sm:text-sm">Received Incomes</Label>
+            <div className="space-y-2">
+              {incomes.map((income, index) => (
+                <div key={income.id} className="flex gap-2">
+                  <Input
+                    id={index === 0 ? 'income' : undefined}
+                    type="text"
+                    placeholder="0"
+                    value={income.displayValue}
+                    onChange={(e) => handleIncomeChange(income.id, e)}
+                    onBlur={() => handleIncomeBlur(income.id)}
+                    onFocus={() => handleIncomeFocus(income.id)}
+                    className="text-sm h-9 sm:h-10 flex-1"
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Description (optional)"
+                    value={income.description}
+                    onChange={(e) => handleDescriptionChange(income.id, e)}
+                    className="text-sm h-9 sm:h-10 flex-1"
+                  />
+                  {incomes.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveIncome(income.id)}
+                      className="h-9 sm:h-10 w-9 sm:w-10 shrink-0 text-destructive hover:text-destructive"
+                    >
+                      <X size={16} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleAddIncome}
+                className="h-9 sm:h-10 w-9 sm:w-10 shrink-0"
+              >
+                <Plus size={16} />
+              </Button>
+              <Button onClick={handleCalculate} className="text-sm sm:text-base h-9 sm:h-10 flex-1">
                 Calculate
               </Button>
             </div>
@@ -121,7 +177,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                   <div key={index} className="space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3 sm:p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="flex-shrink-0 p-1.5 rounded-md bg-primary/10">
+                        <div className="shrink-0 p-1.5 rounded-md bg-primary/10">
                           <IconComponent size={14} className="sm:block hidden text-primary" />
                           <IconComponent size={12} className="sm:hidden text-primary" />
                         </div>
@@ -130,7 +186,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                           <p className="text-xs text-muted-foreground truncate">{result.destination}</p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right shrink-0">
                         <p className="font-bold text-sm sm:text-base">{formatCurrency(result.amount, currency)}</p>
                         {result.proportion && (
                           <p className="text-xs text-muted-foreground">{result.proportion}%</p>

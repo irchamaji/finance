@@ -75,7 +75,7 @@ function AllocationItem({ allocation, onDelete }: AllocationItemProps) {
   const IconComponent = getAllocationIcon(allocation.name)
   
   return (
-    <div className="group relative flex items-center gap-3 sm:gap-4 rounded-xl border border-border/60 bg-gradient-to-br from-card to-card/50 p-3.5 sm:p-4 hover:border-primary/40 hover:shadow-sm transition-all duration-200">
+    <div className="group relative flex items-center gap-3 sm:gap-4 rounded-xl border border-border/60 bg-linear-to-br from-card to-card/50 p-3.5 sm:p-4 hover:border-primary/40 hover:shadow-sm transition-all duration-200">
       {/* Icon */}
       <div className="shrink-0 flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-primary/10 ring-1 ring-primary/20">
         <IconComponent size={18} className="sm:block hidden text-primary" />
