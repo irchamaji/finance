@@ -2,6 +2,7 @@ import * as React from 'react'
 import { db, type Allocation } from '@/lib/database'
 import { AllocationForm } from '@/components/allocation-form'
 import { AllocationsDialog } from '@/components/allocations-dialog'
+import { AllocationStats } from '@/components/allocation-stats'
 import { IncomeCalculator } from '@/components/income-calculator'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -62,6 +63,7 @@ export function FinanceCalculator() {
         <div className="space-y-4 sm:space-y-6 lg:col-span-1">
           <AllocationForm onAdd={handleAddAllocation} />
           <AllocationsDialog allocations={allocations} onDelete={handleDeleteAllocation} />
+          <AllocationStats allocations={allocations} />
         </div>
 
         {/* Main Area */}

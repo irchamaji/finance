@@ -62,7 +62,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-sm">
             <div className="container mx-auto max-w-6xl px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold truncate">Finance Calculator</h1>
+                <h1 className="text-xl sm:text-2xl font-bold truncate">Income Calculator</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground truncate">Manage your income allocations</p>
               </div>
               <div className="flex items-center gap-2">

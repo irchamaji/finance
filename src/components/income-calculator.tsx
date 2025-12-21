@@ -24,6 +24,27 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
   const [error, setError] = React.useState('')
   const nextIdRef = React.useRef(2)
 
+  // Auto-calculate whenever incomes or allocations change
+  React.useEffect(() => {
+    const totalIncome = incomes.reduce((sum, income) => sum + (parseFloat(income.value) || 0), 0)
+    
+    if (totalIncome <= 0 || allocations.length === 0) {
+      setResults([])
+      setError('')
+      return
+    }
+
+    try {
+      const calculatedResults = calculateAllocation(totalIncome, allocations)
+      const sortedResults = (calculatedResults as CalculationResult[]).sort((a, b) => b.amount - a.amount)
+      setResults(sortedResults)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Calculation failed')
+      setResults([])
+    }
+  }, [incomes, allocations])
+
   const handleIncomeChange = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
     const numericValue = input.replace(/[^0-9.]/g, '')
@@ -62,30 +83,11 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
   }
 
   const handleCalculate = () => {
-    setError('')
-    setResults([])
-
-    // Calculate total income from all inputs
-    const totalIncome = incomes.reduce((sum, income) => {
-      const value = parseFloat(income.value) || 0
-      return sum + value
-    }, 0)
-
-    if (totalIncome <= 0) {
-      setError('Please enter at least one valid income amount')
-      return
-    }
-
-    if (allocations.length === 0) {
-      setError('Please add at least one allocation')
-      return
-    }
-
-    try {
-      const calculatedResults = calculateAllocation(totalIncome, allocations)
-      setResults(calculatedResults as CalculationResult[])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Calculation failed')
+    // Manual calculation trigger (now just scrolls to results if they exist)
+    if (results.length > 0) {
+      // Optionally scroll to results section
+      const resultsElement = document.getElementById('allocation-results')
+      resultsElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }
 
@@ -164,7 +166,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
       </Card>
 
       {results.length > 0 && (
-        <Card className="border-0 shadow-md lg:border">
+        <Card className="border-0 shadow-md lg:border" id="allocation-results">
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Allocation Breakdown</CardTitle>
             <CardDescription className="text-xs sm:text-sm">Here's where your money will go</CardDescription>
@@ -216,9 +218,9 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                 <span className="font-bold">{formatCurrency(totalAllocated, currency)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t">
-                <span className="font-semibold">Remaining</span>
+                <span className="font-semibold">{remaining >= 0 ? 'Remaining' : 'Deficit'}</span>
                 <span className={`font-bold text-sm sm:text-base ${remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
-                  {formatCurrency(remaining, currency)}
+                  {formatCurrency(Math.abs(remaining), currency)}
                 </span>
               </div>
             </div>

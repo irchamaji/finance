@@ -25,15 +25,25 @@ export function AllocationForm({ onAdd }: AllocationFormProps) {
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
     
+    // Allow empty string
+    if (input === '') {
+      setValue('')
+      setDisplayValue('')
+      return
+    }
+    
+    // Only allow numbers and a single decimal point
+    const decimalRegex = /^\d*\.?\d*$/
+    if (!decimalRegex.test(input)) {
+      return
+    }
+    
     if (allocationType === 'proportion') {
-      // For percentage, just use plain number
       setValue(input)
       setDisplayValue(input)
     } else {
-      // For nominal, allow typing without formatting
-      const numericValue = input.replace(/[^0-9.]/g, '')
-      setValue(numericValue)
-      setDisplayValue(numericValue)
+      setValue(input)
+      setDisplayValue(input)
     }
   }
 
@@ -128,6 +138,7 @@ export function AllocationForm({ onAdd }: AllocationFormProps) {
               <Input
                 id="value"
                 type="text"
+                inputMode="decimal"
                 placeholder={allocationType === 'proportion' ? '0-100' : '0'}
                 value={allocationType === 'proportion' ? value : displayValue}
                 onChange={handleValueChange}
