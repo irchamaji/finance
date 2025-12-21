@@ -67,7 +67,7 @@ export function FinanceCalculator() {
         {/* Main Area */}
         <div className="space-y-4 sm:space-y-6 md:space-y-8 lg:col-span-2">
           {/* Income Calculator */}
-          {allocations.length > 0 && <IncomeCalculator allocations={allocations} />}
+          <IncomeCalculator allocations={allocations} />
         </div>
       </div>
     </div>
