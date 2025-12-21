@@ -99,9 +99,9 @@ export function calculateAllocation(income: number, allocations: Allocation[]) {
   const totalNominal = nominalAllocations.reduce((sum, a) => sum + (a.nominal || 0), 0)
   const remainingIncome = income - totalNominal
 
-  if (remainingIncome < 0) {
-    throw new Error('Total nominal allocations exceed income')
-  }
+  // if (remainingIncome < 0) {
+  //   throw new Error('Total nominal allocations exceed income')
+  // }
 
   const results = allocations.map(allocation => {
     let amount = 0
