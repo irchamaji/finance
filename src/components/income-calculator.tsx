@@ -84,7 +84,7 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
         <CardContent className="space-y-3 sm:space-y-4">
           <div className="space-y-1.5 sm:space-y-2">
             <Label htmlFor="income" className="text-xs sm:text-sm">Received Income</Label>
-            <div className="flex flex-col sm:flex-row">
+            <div className="gap-x-3 flex flex-col sm:flex-row">
               <Input
                 id="income"
                 type="text"
