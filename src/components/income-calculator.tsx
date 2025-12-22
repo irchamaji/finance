@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import type { Allocation } from '@/lib/database'
+import type { Allocation, Income } from '@/lib/database'
+import { getAllIncomes, addIncome as dbAddIncome, updateIncome as dbUpdateIncome, deleteIncome } from '@/lib/database'
 import { calculateAllocation, getAllocationIcon } from '@/lib/finance'
 import { useSettings, formatNumber, formatCurrency } from '@/lib/settings'
 import { TrendingUp, Plus, X } from 'lucide-react'
@@ -19,10 +20,30 @@ interface CalculationResult extends Allocation {
 }
 
 export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
-  const { currency, incomes, updateIncome, addIncome, removeIncome } = useSettings()
+  const { currency } = useSettings()
+  const [incomes, setIncomes] = React.useState<Income[]>([])
   const [results, setResults] = React.useState<CalculationResult[]>([])
   const [error, setError] = React.useState('')
-  const nextIdRef = React.useRef(2)
+
+  // Notify other components about income changes
+  const notifyIncomeChange = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent('dexie-change'))
+  }, [])
+
+  // Load incomes from database on mount
+  React.useEffect(() => {
+    const loadIncomes = async () => {
+      const dbIncomes = await getAllIncomes()
+      if (dbIncomes.length === 0) {
+        // Initialize with one empty income if none exist
+        const id = await dbAddIncome({ value: '', displayValue: '', description: '' })
+        setIncomes([{ id, value: '', displayValue: '', description: '', timestamp: Date.now() }])
+      } else {
+        setIncomes(dbIncomes)
+      }
+    }
+    loadIncomes()
+  }, [])
 
   // Auto-calculate whenever incomes or allocations change
   React.useEffect(() => {
@@ -45,40 +66,57 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
     }
   }, [incomes, allocations])
 
-  const handleIncomeChange = React.useCallback((id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIncomeChange = React.useCallback(async (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value
     const numericValue = input.replace(/[^0-9.]/g, '')
-    updateIncome(id, { value: numericValue, displayValue: numericValue })
-  }, [updateIncome])
+    await dbUpdateIncome(id, { value: numericValue, displayValue: numericValue })
+    const updated = await getAllIncomes()
+    setIncomes(updated)
+    notifyIncomeChange()
+  }, [notifyIncomeChange])
 
-  const handleDescriptionChange = React.useCallback((id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDescriptionChange = React.useCallback(async (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    updateIncome(id, { description: value })
-  }, [updateIncome])
+    await dbUpdateIncome(id, { description: value })
+    const updated = await getAllIncomes()
+    setIncomes(updated)
+    notifyIncomeChange()
+  }, [notifyIncomeChange])
 
-  const handleIncomeBlur = React.useCallback((id: number) => {
+  const handleIncomeBlur = React.useCallback(async (id: number) => {
     const income = incomes.find(i => i.id === id)
     if (income?.value) {
       const formatted = formatNumber(income.value, currency)
-      updateIncome(id, { displayValue: formatted })
+      await dbUpdateIncome(id, { displayValue: formatted })
+      const updated = await getAllIncomes()
+      setIncomes(updated)
+      notifyIncomeChange()
     }
-  }, [incomes, currency, updateIncome])
+  }, [incomes, currency, notifyIncomeChange])
 
-  const handleIncomeFocus = React.useCallback((id: number) => {
+  const handleIncomeFocus = React.useCallback(async (id: number) => {
     const income = incomes.find(i => i.id === id)
     if (income) {
-      updateIncome(id, { displayValue: income.value })
+      await dbUpdateIncome(id, { displayValue: income.value })
+      const updated = await getAllIncomes()
+      setIncomes(updated)
+      notifyIncomeChange()
     }
-  }, [incomes, updateIncome])
+  }, [incomes, notifyIncomeChange])
 
-  const handleAddIncome = () => {
-    addIncome({ id: nextIdRef.current, value: '', displayValue: '', description: '' })
-    nextIdRef.current += 1
+  const handleAddIncome = async () => {
+    await dbAddIncome({ value: '', displayValue: '', description: '' })
+    const updated = await getAllIncomes()
+    setIncomes(updated)
+    notifyIncomeChange()
   }
 
-  const handleRemoveIncome = (id: number) => {
+  const handleRemoveIncome = async (id: number) => {
     if (incomes.length > 1) {
-      removeIncome(id)
+      await deleteIncome(id)
+      const updated = await getAllIncomes()
+      setIncomes(updated)
+      notifyIncomeChange()
     }
   }
 
@@ -101,13 +139,15 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
           <div className="space-y-1.5 sm:space-y-2">
             <Label htmlFor="income" className="text-xs sm:text-sm">Received Incomes</Label>
             <div className="space-y-2">
-              {incomes.map((income, index) => (
+              {incomes.map((income, index) => {
+                if (!income.id) return null
+                return (
                 <div key={income.id} className="flex gap-2">
                   <Input
                     type="text"
                     placeholder="Description (optional)"
                     value={income.description}
-                    onChange={(e) => handleDescriptionChange(income.id, e)}
+                    onChange={(e) => handleDescriptionChange(income.id!, e)}
                     className="text-sm h-9 sm:h-10 flex-1"
                   />
                   <Input
@@ -115,9 +155,9 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                     type="text"
                     placeholder="0"
                     value={income.displayValue}
-                    onChange={(e) => handleIncomeChange(income.id, e)}
-                    onBlur={() => handleIncomeBlur(income.id)}
-                    onFocus={() => handleIncomeFocus(income.id)}
+                    onChange={(e) => handleIncomeChange(income.id!, e)}
+                    onBlur={() => handleIncomeBlur(income.id!)}
+                    onFocus={() => handleIncomeFocus(income.id!)}
                     className="text-sm h-9 sm:h-10 flex-1"
                   />
                   {incomes.length > 1 && (
@@ -125,14 +165,15 @@ export function IncomeCalculator({ allocations }: IncomeCalculatorProps) {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleRemoveIncome(income.id)}
+                      onClick={() => handleRemoveIncome(income.id!)}
                       className="h-9 sm:h-10 w-9 sm:w-10 shrink-0 text-destructive hover:text-destructive"
                     >
                       <X size={16} />
                     </Button>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
             <div className="flex gap-2 mt-2 items-center">
               <div className="flex-1 flex items-center justify-between rounded-md text-primary bg-muted/30 px-2 sm:px-2 h-8 sm:h-10">

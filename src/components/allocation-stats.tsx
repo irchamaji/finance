@@ -1,7 +1,9 @@
 import * as React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import type { Allocation } from '@/lib/database'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import type { Allocation, Income } from '@/lib/database'
+import { getAllIncomes } from '@/lib/database'
+import { calculateAllocation } from '@/lib/finance'
 import { useSettings, formatCurrency } from '@/lib/settings'
 import { TrendingUp } from 'lucide-react'
 
@@ -9,38 +11,81 @@ interface AllocationStatsProps {
   allocations: Allocation[]
 }
 
-export function AllocationStats({ allocations }: AllocationStatsProps) {
-  const { currency, incomes } = useSettings()
+interface CalculationResult extends Allocation {
+  amount: number
+}
 
-  // Calculate total income
-  const totalIncome = React.useMemo(() => {
+export function AllocationStats({ allocations }: AllocationStatsProps) {
+  const { currency } = useSettings()
+  const [incomes, setIncomes] = React.useState<Income[]>([])
+
+  // Load incomes from database
+  React.useEffect(() => {
+    let mounted = true
+    
+    const loadIncomes = async () => {
+      const dbIncomes = await getAllIncomes()
+      if (mounted) {
+        setIncomes(dbIncomes)
+      }
+    }
+    
+    loadIncomes()
+    
+    // Listen for income changes from income-calculator
+    const handleStorageChange = () => loadIncomes()
+    window.addEventListener('dexie-change', handleStorageChange)
+    
+    return () => {
+      mounted = false
+      window.removeEventListener('dexie-change', handleStorageChange)
+    }
+  }, [])
+
+  // Calculate total income (same as income-calculator)
+  const incomeValue = React.useMemo(() => {
     return incomes.reduce((sum, income) => sum + (parseFloat(income.value) || 0), 0)
   }, [incomes])
 
-  // Calculate chart data
+  // Calculate results using the same logic as income-calculator
+  const results = React.useMemo(() => {
+    if (incomeValue <= 0 || allocations.length === 0) return []
+    
+    try {
+      const calculatedResults = calculateAllocation(incomeValue, allocations)
+      return (calculatedResults as CalculationResult[]).sort((a, b) => b.amount - a.amount)
+    } catch {
+      return []
+    }
+  }, [incomeValue, allocations])
+
+  // Calculate totals (same as income-calculator)
+  const totalAllocated = React.useMemo(() => {
+    return results.reduce((sum, r) => sum + r.amount, 0)
+  }, [results])
+
+  const remaining = React.useMemo(() => {
+    return incomeValue - totalAllocated
+  }, [incomeValue, totalAllocated])
+
+  // Prepare chart data
   const chartData = React.useMemo(() => {
-    if (totalIncome <= 0 || allocations.length === 0) return []
+    if (results.length === 0) return []
 
-    const allocatedAmounts = allocations.map((allocation) => {
-      const amount = allocation.proportion
-        ? (totalIncome * allocation.proportion) / 100
-        : allocation.nominal || 0
-      return { name: allocation.name, value: amount, allocation }
-    })
+    const allocationsData = results.map(result => ({
+      name: result.name,
+      value: result.amount,
+      allocation: result
+    }))
 
-    // Sort by value in descending order (biggest first)
-    const sortedAllocations = allocatedAmounts.sort((a, b) => b.value - a.value)
-
-    const totalAllocated = sortedAllocations.reduce((sum, item) => sum + item.value, 0)
-    const remaining = totalIncome - totalAllocated
-
+    // Only add remaining if positive (don't show deficit in pie chart)
     return [
-      ...sortedAllocations,
+      ...allocationsData,
       ...(remaining > 0 ? [{ name: 'Remaining', value: remaining, allocation: null }] : [])
     ]
-  }, [totalIncome, allocations])
+  }, [results, remaining])
 
-  // Generate grey colors for allocations (dark to light grey)
+  // Generate grey colors for allocations
   const getAllocationColors = (count: number): string[] => {
     const colors: string[] = []
     for (let i = 0; i < count; i++) {
@@ -51,13 +96,13 @@ export function AllocationStats({ allocations }: AllocationStatsProps) {
   }
 
   const allocationColors = React.useMemo(() => {
-    const count = chartData.filter(item => item.name !== 'Remaining').length
+    const count = results.length
     return getAllocationColors(count)
-  }, [chartData])
+  }, [results.length])
 
   const getColor = (index: number, name: string): string => {
     if (name === 'Remaining') {
-      return 'rgb(34, 197, 94)' // Green for remaining (green-600)
+      return 'rgb(34, 197, 94)' // Green for remaining
     }
     return allocationColors[index] || '#666'
   }
@@ -73,7 +118,7 @@ export function AllocationStats({ allocations }: AllocationStatsProps) {
               {formatCurrency(data.value, currency)}
             </span>
             <span className="text-xs text-muted-foreground">
-              {((data.value / totalIncome) * 100).toFixed(1)}%
+              {((data.value / incomeValue) * 100).toFixed(1)}%
             </span>
           </div>
         </div>
@@ -82,7 +127,7 @@ export function AllocationStats({ allocations }: AllocationStatsProps) {
     return null
   }
 
-  if (totalIncome <= 0 || allocations.length === 0) {
+  if (incomeValue <= 0 || allocations.length === 0) {
     return null
   }
 
@@ -106,7 +151,6 @@ export function AllocationStats({ allocations }: AllocationStatsProps) {
               cx="50%"
               cy="50%"
               labelLine={false}
-              // label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
               outerRadius={100}
               fill="#8884d8"
               dataKey="value"
@@ -116,47 +160,20 @@ export function AllocationStats({ allocations }: AllocationStatsProps) {
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            {/* <Legend /> */}
           </PieChart>
         </ResponsiveContainer>
         
         <div className="space-y-2 text-xs sm:text-sm">
-          {/* <div className="flex justify-between font-medium">
-            <span>Total Income</span>
-            <span className="font-bold">{formatCurrency(totalIncome, currency)}</span>
-          </div>
-          <div className="flex justify-between font-medium">
-            <span>Total Allocated</span>
-            <span className="font-bold">
-              {formatCurrency(
-                chartData
-                  .filter(item => item.name !== 'Remaining')
-                  .reduce((sum, item) => sum + item.value, 0),
-                currency
-              )}
-            </span>
-          </div> */}
-          {(() => {
-            const totalAllocated = chartData
-              .filter(item => item.name !== 'Remaining')
-              .reduce((sum, item) => sum + item.value, 0)
-            const remaining = totalIncome - totalAllocated
-            const isPositive = remaining >= 0
-            const percentage = (Math.abs(remaining) / totalIncome * 100).toFixed(1)
-            
-            if (remaining === 0) return null
-            
-            return (
-              <div className="flex justify-between pt-2 border-t">
-                <span className="font-semibold">{isPositive ? 'Remaining' : 'Deficit'}</span>
-                <span className={`font-bold text-sm sm:text-base ${
-                  isPositive ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-                }`}>
-                  {isPositive ? ''+percentage : '-'}%
-                </span>
-              </div>
-            )
-          })()}
+          {remaining !== 0 && (
+            <div className="flex justify-between pt-2 border-t">
+              <span className="font-semibold">{remaining >= 0 ? 'Remaining' : 'Deficit'}</span>
+              <span className={`font-bold text-sm sm:text-base ${
+                remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'
+              }`}>
+                {((Math.abs(remaining) / incomeValue) * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

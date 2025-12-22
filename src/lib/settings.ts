@@ -14,21 +14,9 @@ export const CURRENCIES = {
 
 export type Currency = keyof typeof CURRENCIES
 
-export interface IncomeInput {
-  id: number
-  value: string
-  displayValue: string
-  description: string
-}
-
 interface SettingsStore {
   currency: Currency
   setCurrency: (currency: Currency) => void
-  incomes: IncomeInput[]
-  setIncomes: (incomes: IncomeInput[]) => void
-  addIncome: (income: IncomeInput) => void
-  removeIncome: (id: number) => void
-  updateIncome: (id: number, updates: Partial<IncomeInput>) => void
 }
 
 export const useSettings = create<SettingsStore>()(
@@ -36,15 +24,6 @@ export const useSettings = create<SettingsStore>()(
     (set) => ({
       currency: 'USD',
       setCurrency: (currency) => set({ currency }),
-      incomes: [{ id: 1, value: '', displayValue: '', description: '' }],
-      setIncomes: (incomes) => set({ incomes }),
-      addIncome: (income) => set((state) => ({ incomes: [...state.incomes, income] })),
-      removeIncome: (id) => set((state) => ({ incomes: state.incomes.filter((income) => income.id !== id) })),
-      updateIncome: (id, updates) => set((state) => ({
-        incomes: state.incomes.map((income) => 
-          income.id === id ? { ...income, ...updates } : income
-        )
-      })),
     }),
     {
       name: 'finance-settings',
