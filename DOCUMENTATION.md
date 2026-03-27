@@ -589,3 +589,4 @@ To fully reset the app, clear your browser's site data for the app's origin.
 ---
 
 *This document reflects the state of the codebase as of **March 2026**. Update it when the schema, calculation logic, or component structure changes.*
+
