@@ -8,7 +8,7 @@
     "start": "next start",
     "preview": "next start",
     "test": "vitest run",
-    "lint": "eslint",
+    "lint": "eslint . --ignore-pattern .next --ignore-pattern .output",
     "format": "prettier",
     "check": "prettier --write . && eslint --fix"
   },
