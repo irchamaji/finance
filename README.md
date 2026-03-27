@@ -1,6 +1,6 @@
 # Finance Calculator
 
-A personal finance income allocation calculator built with React, TypeScript, and TanStack Start.
+A personal finance income allocation calculator built with Next.js, React, and TypeScript.
 
 ## Features
 
@@ -15,7 +15,7 @@ A personal finance income allocation calculator built with React, TypeScript, an
 
 ## Tech Stack
 
-- **Framework**: TanStack Start with React 19
+- **Framework**: Next.js 16.2.1 with React 19
 - **Language**: TypeScript
 - **Styling**: TailwindCSS with shadcn/ui components
 - **Icons**: Lucide Icons (1500+ vector icons)
@@ -70,9 +70,12 @@ The application will be available at `http://localhost:3000`
 ## Project Structure
 
 ```
+app/
+├── layout.tsx                     # Root layout
+└── page.tsx                       # Home page
 src/
 ├── components/
-│   ├── allocation-form.tsx       # Add and display allocations
+│   ├── allocation-form.tsx        # Add and display allocations
 │   ├── income-calculator.tsx      # Income calculation interface
 │   ├── finance-calculator.tsx     # Main app component
 │   ├── theme-toggle.tsx           # Dark/light mode toggle
@@ -81,9 +84,6 @@ src/
 │   ├── database.ts                # Dexie database setup
 │   ├── finance.ts                 # Calculation and validation logic
 │   └── utils.ts                   # Utility functions
-├── routes/
-│   ├── __root.tsx                 # Root layout
-│   └── index.tsx                  # Home page
 └── styles.css                     # Global styles with theme variables
 ```
 
