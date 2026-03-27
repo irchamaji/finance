@@ -10,6 +10,7 @@ node_modules/
 /build
 /dist
 /.next
+/.output
 
 # Misc
 .DS_Store
