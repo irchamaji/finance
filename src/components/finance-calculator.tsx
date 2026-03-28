@@ -1,3 +1,5 @@
+'use client'
+
 import * as React from 'react'
 import { db, type Allocation } from '@/lib/database'
 import { AllocationForm } from '@/components/allocation-form'
